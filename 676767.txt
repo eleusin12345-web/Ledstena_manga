@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MangaWeb - Читалка манги</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+body {
+background-color: #111827;
+color: white;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.manga-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.manga-card:hover { transform: translateY(-4px); cursor: pointer; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1f2937; }
+::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 4px; }
+
+.reader-dark { background-color: #030712; }
+.reader-gray { background-color: #1f2937; }
+.reader-light { background-color: #f3f4f6; color: #111827; }
+</style>
+</head>
+<body class="antialiased overflow-x-hidden">
+
+<!-- НАВИГАЦИЯ -->
+<nav class="fixed w-full z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex items-center justify-between h-16">
+<div class="flex-shrink-0 flex items-center gap-2 cursor-pointer" onclick="showView('home-view')">
+<i class="fa-solid fa-book-open text-purple-500 text-2xl"></i>
+<span class="font-bold text-xl hidden sm:block tracking-wider">Manga<span class="text-purple-500">Web</span></span>
+</div>
+<div class="flex-1 max-w-xl mx-4 relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<i class="fa-solid fa-search text-gray-400"></i>
+</div>
+<input type="text" id="searchInput" oninput="handleSearch()" class="block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-full bg-gray-800 text-gray-300 placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-all" placeholder="Поиск манги...">
+</div>
+<div class="flex items-center gap-2">
+<button onclick="openAddMangaModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm py-1.5 px-3 md:px-4 rounded-full transition-colors flex items-center gap-2">
+<i class="fa-solid fa-plus"></i> <span class="hidden md:inline">Создать мангу</span>
+</button>
+</div>
+</div>
+</div>
+</nav>
+
+<!-- ГЛАВНАЯ СТРАНИЦА -->
+<div id="home-view" class="view-section block pt-16 pb-20">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+<h2 class="text-2xl font-bold border-l-4 border-purple-500 pl-3 mb-6">Каталог</h2>
+<div id="manga-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6"></div>
+<div id="no-results" class="hidden text-center text-gray-500 py-10">
+<i class="fa-solid fa-ghost text-4xl mb-3"></i>
+<p>Ничего не найдено</p>
+</div>
+</div>
+</div>
+
+<!-- СТРАНИЦА ДЕТАЛЕЙ И ГЛАВ -->
+<div id="details-view" class="view-section hidden pt-16 pb-20 max-w-5xl mx-auto px-4">
+<button onclick="showView('home-view')" class="mt-4 mb-6 text-gray-400 hover:text-white flex items-center gap-2">
+<i class="fa-solid fa-arrow-left"></i> Назад в каталог
+</button>
+
+<div class="flex flex-col md:flex-row gap-6 bg-gray-800/50 p-4 md:p-6 rounded-xl border border-gray-700">
+<img id="detail-cover" src="" class="w-full md:w-64 rounded-lg object-cover shadow-lg h-96" alt="Обложка">
+<div class="flex-1">
+<h1 id="detail-title" class="text-3xl font-bold mb-2">Название</h1>
+<div class="flex gap-3 mb-4 text-sm text-gray-300">
+<span class="bg-gray-700 px-2 py-1 rounded"><i class="fa-solid fa-star text-yellow-400"></i> <span id="detail-rating">10.0</span></span>
+<span class="bg-gray-700 px-2 py-1 rounded">Манхва</span>
+</div>
+<p id="detail-desc" class="text-gray-400 text-sm md:text-base mb-6 leading-relaxed">Описание...</p>
+
+<div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-4">
+<h3 class="text-xl font-bold">Список глав</h3>
+<button onclick="openAddChapterModal()" class="bg-purple-600 hover:bg-purple-700 text-xs text-white font-bold py-1.5 px-3 rounded-lg transition flex items-center gap-1.5">
+<i class="fa-solid fa-plus"></i> Добавить главу
+</button>
+</div>
+
+<div id="chapters-list" class="flex flex-col gap-2 max-h-64 overflow-y-auto pr-2"></div>
+</div>
+</div>
+</div>
+
+<!-- РЕЖИМ ЧТЕНИЯ -->
+<div id="reader-view" class="view-section hidden min-h-screen reader-dark pt-14 pb-20 transition-colors duration-300">
+<div class="fixed top-0 left-0 w-full bg-gray-900/90 backdrop-blur border-b border-gray-800 z-40 p-3 flex justify-between items-center shadow-lg" id="reader-nav">
+<button onclick="showView('details-view')" class="text-gray-400 hover:text-white p-2">
+<i class="fa-solid fa-arrow-left text-xl"></i>
+</button>
+<div class="text-center flex-1 mx-4 truncate">
+<h3 id="reader-title" class="font-bold text-sm text-gray-100 truncate">Название</h3>
+<p id="reader-chapter" class="text-xs text-purple-400 truncate">Глава</p>
+</div>
+<button onclick="toggleSettings()" class="text-gray-400 hover:text-white p-2">
+<i class="fa-solid fa-gear text-xl"></i>
+</button>
+</div>
+
+<!-- Контейнер со страницами манги -->
+<div id="reader-images" class="max-w-3xl mx-auto flex flex-col items-center w-full"></div>
+
+<!-- КНОПКИ НАВИГАЦИИ В КОНЦЕ ГЛАВЫ -->
+<div class="max-w-3xl mx-auto grid grid-cols-2 gap-4 mt-10 px-4">
+<button id="prev-chapter-btn" onclick="changeChapter(-1)" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+<i class="fa-solid fa-chevron-left"></i> Пред. глава
+</button>
+<button id="next-chapter-btn" onclick="changeChapter(1)" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+След. глава <i class="fa-solid fa-chevron-right"></i>
+</button>
+</div>
+
+<div class="max-w-3xl mx-auto flex justify-center mt-6">
+<button onclick="showView('details-view')" class="text-gray-400 hover:text-white text-sm py-2 px-4 transition">
+<i class="fa-solid fa-list mr-1"></i> Вернуться к списку глав
+</button>
+</div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО НАСТРОЕК -->
+<div id="settings-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+<div class="bg-gray-800 rounded-xl max-w-sm w-full p-6 border border-gray-700 shadow-2xl">
+<div class="flex justify-between items-center mb-5">
+<h3 class="text-xl font-bold">Настройки чтения</h3>
+<button onclick="toggleSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+</div>
+<p class="text-sm text-gray-400 mb-3">Цвет фона читалки:</p>
+<div class="flex gap-3">
+<button onclick="changeBg('reader-dark')" class="w-12 h-12 rounded-full bg-[#030712] border-2 border-purple-500 shadow-lg"></button>
+<button onclick="changeBg('reader-gray')" class="w-12 h-12 rounded-full bg-[#1f2937] border-2 border-transparent hover:border-gray-500"></button>
+<button onclick="changeBg('reader-light')" class="w-12 h-12 rounded-full bg-[#f3f4f6] border-2 border-transparent hover:border-gray-500"></button>
+</div>
+<button onclick="toggleSettings()" class="w-full mt-6 bg-gray-700 hover:bg-gray-600 py-2 rounded-lg font-bold">Закрыть</button>
+</div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: СОЗДАТЬ МАНГУ -->
+<div id="add-manga-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div class="bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+<div class="flex justify-between items-center mb-5">
+<h3 class="text-xl font-bold">Новая манга</h3>
+<button onclick="closeAddMangaModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+</div>
+<form onsubmit="saveNewManga(event)">
+<div class="mb-4">
+<label class="block text-sm text-gray-400 mb-1">Название</label>
+<input type="text" id="manga-title-input" required class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-purple-500 focus:outline-none">
+</div>
+<div class="mb-4">
+<label class="block text-sm text-gray-400 mb-1">Ссылка на обложку (URL)</label>
+<input type="url" id="manga-cover-input" required placeholder="https://..." class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-purple-500 focus:outline-none">
+</div>
+<div class="mb-6">
+<label class="block text-sm text-gray-400 mb-1">Описание</label>
+<textarea id="manga-desc-input" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-purple-500 focus:outline-none"></textarea>
+</div>
+<button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg transition">Создать</button>
+</form>
+</div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО: ДОБАВИТЬ ГЛАВУ -->
+<div id="add-chapter-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+<div class="bg-gray-800 rounded-xl max-w-md w-full p-6 border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+<div class="flex justify-between items-center mb-5">
+<h3 class="text-xl font-bold">Добавить новую главу</h3>
+<button onclick="closeAddChapterModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+</div>
+<form onsubmit="saveNewChapter(event)">
+<div class="mb-4">
+<label class="block text-sm text-gray-400 mb-1">Название главы (например: Глава 2)</label>
+<input type="text" id="chapter-title-input" required placeholder="Глава 2" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-purple-500 focus:outline-none">
+</div>
+<div class="mb-6">
+<label class="block text-sm text-gray-400 mb-1">Ссылки на страницы (каждая с новой строки)</label>
+<textarea id="chapter-images-input" required rows="6" placeholder="https://ссылка-1.jpg https://ссылка-2.jpg" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-purple-500 focus:outline-none"></textarea>
+</div>
+<button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded-lg transition">Опубликовать главу</button>
+</form>
+</div>
+</div>
+
+<!-- СКРИПТЫ -->
+<script>
+const defaultData = [
+{
+id: 1,
+title: "Истинное образование",
+cover: "https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=500&auto=format&fit=crop",
+rating: "9.9",
+desc: "Агентство по защите прав учителей приступает к работе!",
+chapters: [
+{
+title: "Глава 1",
+images: [
+"https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop"
+ ]
+},
+{
+title: "Глава 2",
+images: [
+"https://images.unsplash.com/photo-1542831371-29b0f74f9713?q=80&w=800&auto=format&fit=crop"
+ ]
+}
+]
+}
+];
+
+let mangaDB = [];
+let currentMangaId = null;
+let currentChapterIndex = 0;
+
+window.onload = () => {
+const savedData = JSON.parse(localStorage.getItem('myMangaDB')) || defaultData;
+mangaDB = savedData;
+renderGrid(mangaDB);
+};
+
+function saveDataToStorage() {
+localStorage.setItem('myMangaDB', JSON.stringify(mangaDB));
+}
+
+function renderGrid(data) {
+const grid = document.getElementById('manga-grid');
+const noResults = document.getElementById('no-results');
+grid.innerHTML = '';
+
+if(data.length === 0) {
+noResults.classList.remove('hidden');
+} else {
+noResults.classList.add('hidden');
+data.forEach(manga => {
+const latestChapter = manga.chapters.length > 0 ? manga.chapters[manga.chapters.length - 1].title : "Нет глав";
+const card = document.createElement('div');
+card.className = 'manga-card bg-gray-800 rounded-lg overflow-hidden relative group border border-gray-700';
+card.onclick = () => openDetails(manga.id);
+
+card.innerHTML = &lt;div class="relative pt-[140%]"&gt; &lt;img src="${manga.cover}" alt="cover" class="absolute top-0 left-0 w-full h-full object-cover">
+<div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent"></div>
+<div class="absolute top-2 right-2 bg-black/70 text-yellow-400 text-xs font-bold px-2 py-1 rounded backdrop-blur">
+<i class="fa-solid fa-star"></i> ${manga.rating} &lt;/div&gt; &lt;/div&gt; &lt;div class="absolute bottom-0 w-full p-3"&gt; &lt;h3 class="font-bold text-white text-sm md:text-base mb-1 truncate group-hover:text-purple-400"&gt;${manga.title}</h3>
+<p class="text-purple-300 text-xs">${latestChapter}&lt;/p&gt; &lt;/div&gt;;
+grid.appendChild(card);
+});
+}
+}
+
+function handleSearch() {
+const query = document.getElementById('searchInput').value.toLowerCase();
+const filtered = mangaDB.filter(m => m.title.toLowerCase().includes(query));
+renderGrid(filtered);
+}
+
+function openDetails(id) {
+currentMangaId = id;
+const manga = mangaDB.find(m => m.id === id);
+if(!manga) return;
+
+document.getElementById('detail-title').textContent = manga.title;
+document.getElementById('detail-cover').src = manga.cover;
+document.getElementById('detail-rating').textContent = manga.rating;
+document.getElementById('detail-desc').textContent = manga.desc || "Описание отсутствует.";
+
+const chaptersList = document.getElementById('chapters-list');
+chaptersList.innerHTML = '';
+
+if(manga.chapters.length === 0) {
+chaptersList.innerHTML = '<p class="text-gray-500 text-sm py-2">Глав пока нет. Добавьте первую!</p>';
+} else {
+manga.chapters.forEach((chapter, index) => {
+const btn = document.createElement('button');
+btn.className = 'w-full text-left bg-gray-700 hover:bg-gray-600 p-3 rounded-lg flex justify-between items-center transition';
+btn.onclick = () => openReader(index);
+btn.innerHTML = &lt;span class="font-bold"&gt;${chapter.title}&lt;/span&gt; &lt;i class="fa-solid fa-play text-purple-400"&gt;&lt;/i&gt;;
+chaptersList.appendChild(btn);
+});
+}
+
+showView('details-view');
+}
+
+function openReader(chapterIndex) {
+currentChapterIndex = chapterIndex;
+const manga = mangaDB.find(m => m.id === currentMangaId);
+const chapter = manga.chapters[chapterIndex];
+
+document.getElementById('reader-title').textContent = manga.title;
+document.getElementById('reader-chapter').textContent = chapter.title;
+
+const prevBtn = document.getElementById('prev-chapter-btn');
+const nextBtn = document.getElementById('next-chapter-btn');
+
+prevBtn.disabled = (chapterIndex === 0);
+nextBtn.disabled = (chapterIndex === manga.chapters.length - 1);
+
+const imageContainer = document.getElementById('reader-images');
+imageContainer.innerHTML = '';
+
+chapter.images.forEach((imgUrl, i) => {
+const img = document.createElement('img');
+img.src = imgUrl.trim();
+img.className = 'w-full object-contain mb-1';
+img.onerror = function() { this.src = 'https://via.placeholder.com/800x600/374151/FFFFFF?text=Ошибка+загрузки'; };
+imageContainer.appendChild(img);
+});
+
+showView('reader-view');
+}
+
+function changeChapter(direction) {
+const manga = mangaDB.find(m => m.id === currentMangaId);
+if (!manga) return;
+
+const newIndex = currentChapterIndex + direction;
+if (newIndex >= 0 && newIndex < manga.chapters.length) {
+openReader(newIndex);
+}
+}
+
+function showView(viewId) {
+document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+document.getElementById(viewId).classList.remove('hidden');
+window.scrollTo(0,0);
+}
+
+function toggleSettings() {
+document.getElementById('settings-modal').classList.toggle('hidden');
+}
+
+function changeBg(themeClass) {
+const reader = document.getElementById('reader-view');
+reader.classList.remove('reader-dark', 'reader-gray', 'reader-light');
+reader.classList.add(themeClass);
+
+if(themeClass === 'reader-light') {
+document.getElementById('reader-title').classList.replace('text-gray-100', 'text-gray-900');
+document.getElementById('reader-nav').classList.replace('bg-gray-900/90', 'bg-white/90');
+} else {
+document.getElementById('reader-title').classList.replace('text-gray-900', 'text-gray-100');
+document.getElementById('reader-nav').classList.replace('bg-white/90', 'bg-gray-900/90');
+}
+}
+
+function openAddMangaModal() { document.getElementById('add-manga-modal').classList.remove('hidden'); }
+function closeAddMangaModal() { document.getElementById('add-manga-modal').classList.add('hidden'); }
+
+function saveNewManga(event) {
+event.preventDefault();
+const title = document.getElementById('manga-title-input').value;
+const cover = document.getElementById('manga-cover-input').value;
+const desc = document.getElementById('manga-desc-input').value;
+
+const newManga = {
+id: Date.now(),
+title: title,
+cover: cover,
+rating: "10.0",
+desc: desc || "Описание отсутствует.",
+chapters: []
+};
+
+mangaDB.push(newManga);
+saveDataToStorage();
+renderGrid(mangaDB);
+
+document.getElementById('manga-title-input').value = '';
+document.getElementById('manga-cover-input').value = '';
+document.getElementById('manga-desc-input').value = '';
+closeAddMangaModal();
+openDetails(newManga.id);
+}
+
+function openAddChapterModal() { document.getElementById('add-chapter-modal').classList.remove('hidden'); }
+function closeAddChapterModal() { document.getElementById('add-chapter-modal').classList.add('hidden'); }
+
+function saveNewChapter(event) {
+event.preventDefault();
+const chapTitle = document.getElementById('chapter-title-input').value;
+const imagesRaw = document.getElementById('chapter-images-input').value;
+const imageUrls = imagesRaw.split('\n').filter(url => url.trim() !== '');
+
+const manga = mangaDB.find(m => m.id === currentMangaId);
+if(manga) {
+manga.chapters.push({
+title: chapTitle,
+images: imageUrls
+});
+saveDataToStorage();
+openDetails(currentMangaId);
+}
+
+document.getElementById('chapter-title-input').value = '';
+document.getElementById('chapter-images-input').value = '';
+closeAddChapterModal();
+}
+</script>
+</body>
+</html>
